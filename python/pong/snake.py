@@ -3,7 +3,7 @@ import math
 import random
 import logging
 from re import S
-from turtle import width
+from turtle import position, width
 import pygame
 import tkinter as tk
 from tkinter import messagebox
@@ -52,6 +52,7 @@ class snake(object):
             keys = pygame.key.get_pressed()
             
             #logging.warning('keys {}'.format(keys))
+            #logging.warning('pos {}'.format(self.head.pos[:]))#self.head.pos[:] = (5,10)
             
             for key in keys:
                 #gestione dei movimenti
@@ -94,10 +95,32 @@ class snake(object):
             
                
     def reset(self, pos):
+        self.head = cube(pos)
+        self.body = []
+        self.body.append(self.head)
+        self.turns = {}
+        self.dirnx = 0
+        self.dirny = 1
         
-        pass
+        
     def addCube(self):
-        pass
+        #prendo ultimo elemento della body (lista)
+        tail = self.body[-1]
+        dx, dy = tail.dirnx, tail.dirny
+        
+        if dx == 1 and dy == 0:
+            self.body.append(cube((tail.pos[0]-1,tail.pos[1])))
+        elif dx == -1 and dy == 0:
+            self.body.append(cube((tail.pos[0]+1,tail.pos[1])))
+        elif dx == 0 and dy == 1:
+            self.body.append(cube((tail.pos[0],tail.pos[1]-1)))
+        elif dx == 0 and dy == -1:
+            self.body.append(cube((tail.pos[0],tail.pos[1]+1)))
+        
+        #do la stessa direzione all'ultimo elemento aggiunto
+        self.body[-1].dirnx = dx
+        self.body[-1].dirny = dy
+        
     def draw(self, surface):
         #logging.warning('draw chiamato')
         for i, c in enumerate(self.body):
@@ -122,31 +145,61 @@ def drawGrid(w, rows, surface):
         pygame.draw.line(surface=surface, color=(255,255,255), start_pos=(0,y), end_pos=(w,y))# linea orizzontale
 
 def redrawWindow(surface):
-    global rows, width , s
+    global rows, width , s, snack
     surface.fill((0,0,0))
     s.draw(surface)#snake
+    snack.draw(surface)#food
     drawGrid(width, rows, surface)#disegna la griglia
     pygame.display.update()
 
-def randomSnack(rows, items):
-    pass
+def randomSnack(rows, item):
+    positions = item.body
+    
+    while True:
+        x = random.randrange(rows)
+        y = random.randrange(rows)
+        #evita generazione snack in snake
+        if len(list(filter(lambda z:z.pos == (x,y), positions))) > 0:
+            continue
+        else:
+            break
+    return (x,y)
+        
 
 def message_box(subject, content):
-    pass
+    root = tk.Tk()
+    root.attributes("-topmost", True)
+    root.withdraw()
+    messagebox.showinfo(subject, content)
+    try:
+        root.destroy()
+    except:
+        pass
 
 def main():
-    global width, rows, s
+    global width, rows, s, snack
     width = 500
     rows = 20
     win =  pygame.display.set_mode((width, width))#crea la finestra chiamata surface
     s = snake(color=(255,0,0),pos=(1,1))#colore e posizione
-    
+    snack = cube(randomSnack(rows, s), color=(0,255,0))#colore e posizione
     flag = True
     clock = pygame.time.Clock()
     while flag:
         pygame.time.delay(50)
         clock.tick(10)
         s.move()
+        if s.body[0].pos == snack.pos:
+            s.addCube()
+            snack = cube(randomSnack(rows, s), color=(0,255,0))
+        
+        for x in range(len(s.body)):
+            if s.body[x].pos in list(map(lambda z:z.pos,s.body[x+1:])):
+                print('Score: ', len(s.body))
+                message_box('You Lost!', 'Play again...')
+                s.reset((10,10))
+                break
+        #ad ogni ciclo risegna la griglia
         redrawWindow(win)#punto di ingresso
   
     
